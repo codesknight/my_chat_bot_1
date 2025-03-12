@@ -40,6 +40,14 @@ def get_response(prompt, model="deepseek-chat", max_tokens=1000):
 def index():
     return render_template('index.html')
 
+@app.route('/face')
+def face():
+    return render_template('face.html')
+
+@app.route('/talkwith')
+def talkwith():
+    return render_template('talkwith.html')
+
 @app.route('/chat', methods=['POST'])
 def chat():
     user_input = request.form['message']
