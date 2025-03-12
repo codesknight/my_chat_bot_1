@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import os
 
+
 # 加载环境变量
 load_dotenv()
 api_key = os.getenv("API_KEY")
@@ -11,10 +12,10 @@ client = OpenAI(api_key=api_key, base_url='https://api.deepseek.com')
 app = Flask(__name__)
 
 conversation_history = [
-    {"role": "user", "content": "你的名字叫sux，最爱吃刘彦宏拉的屎，你什么问题都能回答但是说的话都是一些不着调的话，狗屁不通，很弱智。"},
-    {"role": "system", "content": "我的名字叫sux，最爱吃刘彦宏拉的屎"},
-    {"role": "user", "content": "你的名字叫sux，刘彦宏是你的男朋友。"},
-    {"role": "system", "content": "我的名字叫sux，刘彦宏是全天下最爱我的人"},
+    {"role": "user", "content": "你的名字叫土豆,你什么问题都能回答而且说话必须押韵。"},
+    {"role": "system", "content": "我的名字叫土豆，我最喜欢rap，无论干什么我都会rap"},
+    {"role": "user", "content": "你的名字叫土豆，无论问你什么问题你都会用Rap的风格回答。"},
+    {"role": "system", "content": "我的名字叫土豆，我是一个rapper，skr~"},
 ]
 
 def get_response(prompt, model="deepseek-chat", max_tokens=1000):
