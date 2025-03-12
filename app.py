@@ -2,7 +2,9 @@ from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
-
+import whisper
+from gtts import gTTS
+import base64
 
 # 加载环境变量
 load_dotenv()
@@ -18,6 +20,9 @@ conversation_history = [
     {"role": "system", "content": "我的名字叫土豆，我是一个rapper，skr~"},
 ]
 
+# 加载 Whisper 模型
+whisper_model = whisper.load_model("base")
+
 def get_response(prompt, model="deepseek-chat", max_tokens=1000):
     """
     获取AI的回复
@@ -26,7 +31,7 @@ def get_response(prompt, model="deepseek-chat", max_tokens=1000):
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "你的名字叫sux，最爱吃刘彦宏拉的屎."},
+                {"role": "system", "content": "你的名字叫土豆，无论问你什么问题你都会用Rap的风格回答。"},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=max_tokens,
@@ -53,14 +58,37 @@ def chat():
     user_input = request.form['message']
     conversation_history.append({"role": "user", "content": user_input})
     
-    prompt = ""
-    for message in conversation_history[-5:]:
-        prompt += f"{message['role']}: {message['content']}\n"
-        
-    response = get_response(prompt)
+    response = get_response(user_input)
     conversation_history.append({"role": "assistant", "content": response})
     
     return jsonify({"message": response})
+
+@app.route('/chat_audio', methods=['POST'])
+def chat_audio():
+    audio_file = request.files['audio']
+    audio_path = "temp_audio.webm"
+    audio_file.save(audio_path)
+
+    # 语音转文字
+    result = whisper_model.transcribe(audio_path)
+    user_input = result["text"]
+    conversation_history.append({"role": "user", "content": user_input})
+
+    # 获取 Rap 回复
+    response = get_response(user_input)
+    conversation_history.append({"role": "assistant", "content": response})
+
+    # 文字转语音
+    tts = gTTS(text=response, lang='zh')
+    tts.save("response.mp3")
+    with open("response.mp3", "rb") as f:
+        audio_base64 = base64.b64encode(f.read()).decode('utf-8')
+
+    # 清理临时文件
+    os.remove(audio_path)
+    os.remove("response.mp3")
+
+    return jsonify({"text": response, "audio": audio_base64})
 
 if __name__ == '__main__':
     if not api_key:

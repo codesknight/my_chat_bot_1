@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -15,7 +16,7 @@
             min-height: 100vh;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* 防止滚动条影响居中 */
+            overflow: hidden;
         }
         .chat-wrapper {
             display: flex;
@@ -27,24 +28,24 @@
         .chat-container {
             text-align: center;
             width: 100%;
-            max-width: 500px; /* 限制最大宽度以适配移动设备 */
+            max-width: 500px;
             position: relative;
-            margin: 0 auto; /* 确保水平居中 */
+            margin: 0 auto;
         }
         .face {
-            width: 40vw; /* 基于视口宽度的自适应大小 */
+            width: 40vw;
             height: 40vw;
             max-width: 250px;
             max-height: 250px;
             position: relative;
             margin: 20px auto;
-            border: 3px solid #000; /* 粗糙的手绘风格边框 */
+            border: 3px solid #000;
             border-radius: 50%;
-            background-color: #ffd700; /* 黄色脸 */
+            background-color: #ffd700;
             transition: transform 0.3s;
         }
         .face:hover {
-            transform: scale(1.05); /* 悬停时轻微放大 */
+            transform: scale(1.05);
         }
         .eyes {
             position: absolute;
@@ -78,25 +79,25 @@
             left: 35%;
             width: 30%;
             height: 20%;
-            border-bottom: 3px solid #ff0000; /* 红色嘴巴边框 */
+            border-bottom: 3px solid #ff0000;
             border-left: 3px solid #ff0000;
             border-right: 3px solid #ff0000;
-            border-radius: 50% 50% 0 0; /* 上半部分圆角实现微笑 */
+            border-radius: 50% 50% 0 0;
             transform-origin: center;
-            transform: rotate(180deg); /* 默认微笑 */
-            background-color: #ff0000; /* 嘴巴内部全红色 */
+            transform: rotate(180deg);
+            background-color: #ff0000;
             overflow: hidden;
         }
         .mouth::before {
             content: '';
             position: absolute;
-            bottom: -20%; /* 向下移动舌头位置 */
+            bottom: -20%;
             left: 20%;
             width: 60%;
-            height: 50%; /* 舌头高度占嘴巴一半 */
-            background-color: #ffffff; /* 淡粉色舌头 */
-            border-radius: 50% 50% 0 0; /* 舌头顶部圆润 */
-            transform: rotate(0deg); /* 跟随嘴巴方向 */
+            height: 50%;
+            background-color: #ffffff;
+            border-radius: 50% 50% 0 0;
+            transform: rotate(0deg);
         }
         .speech-bubble {
             position: relative;
@@ -148,11 +149,9 @@
         .talking .mouth {
             animation: mouthTalk 0.6s infinite;
         }
-        /* 静态眨眼动画 */
         .blinking .mouth {
             animation: blinkMouth 1s ease-in-out;
         }
-        /* 动画定义 */
         @keyframes moveEyes {
             0%, 100% { transform: translateX(0); }
             50% { transform: translateX(15%); }
@@ -169,7 +168,6 @@
             0%, 100% { height: 20%; transform: rotate(180deg); }
             50% { height: 10%; transform: rotate(180deg); }
         }
-        /* 移动端适配 */
         @media (max-width: 576px) {
             .face {
                 width: 50vw;
@@ -204,7 +202,8 @@
             <!-- User Speech Bubble with Input -->
             <div class="speech-bubble user-bubble" id="user-message">
                 <div class="input-group">
-                    <input type="text" id="user-input" class="form-control" placeholder="">
+                    <input type="text" id="user-input" class="form-control" placeholder="语言输入/输出需要科学上网">
+                    <button class="btn btn-outline-secondary" id="record-btn" type="button">🎤</button>
                     <button class="btn btn-primary" onclick="sendMessage()" type="button">发送</button>
                 </div>
             </div>
@@ -216,6 +215,73 @@
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
 <script>
+let mediaRecorder;
+let audioChunks = [];
+
+navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = event => {
+            audioChunks.push(event.data);
+        };
+        mediaRecorder.onstop = sendAudio;
+    })
+    .catch(err => console.error('麦克风权限出错:', err));
+
+const recordBtn = document.getElementById('record-btn');
+let isRecording = false;
+
+recordBtn.addEventListener('click', () => {
+    const face = document.querySelector('.face');
+    const userInput = document.getElementById('user-input');
+    userInput.value = '可语言输入/输出但需要科学上网'; // 在输入框中显示占位符
+    if (!isRecording) {
+        audioChunks = [];
+        mediaRecorder.start();
+        recordBtn.textContent = '⏹️';
+        face.classList.add('talking');
+        isRecording = true;
+
+        userInput.value = '听写中...'; // 在输入框中显示占位符
+    } else {
+        mediaRecorder.stop();
+        recordBtn.textContent = '🎤';
+        face.classList.remove('talking');
+        isRecording = false;
+        userInput.value = '等待输入...'; // 在输入框中显示占位符
+    }
+});
+
+function sendAudio() {
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
+
+    const face = document.querySelector('.face');
+    face.classList.add('thinking');
+
+    fetch('/chat_audio', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('后端出错，状态码: ' + response.status);
+        return response.json();
+    })
+    .then(data => {
+        document.getElementById('bot-message').innerHTML = data.text || ' ';
+        const audio = new Audio('data:audio/mp3;base64,' + data.audio);
+        audio.play();
+        face.classList.remove('thinking');
+        face.classList.add('talking');
+        audio.onended = () => face.classList.remove('talking');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('bot-message').innerHTML = '出错啦：' + error.message;
+        face.classList.remove('thinking');
+    });
+}
 function sendMessage() {
     const userInput = document.getElementById('user-input').value;
     const face = document.querySelector('.face');
@@ -223,7 +289,6 @@ function sendMessage() {
     
     if (!userInput) return;
 
-    // 开始思考动画
     face.classList.add('thinking');
 
     fetch('/chat', {
@@ -235,13 +300,9 @@ function sendMessage() {
     .then(data => {
         botMessage.innerHTML = data.message || ' ';
         document.getElementById('user-input').value = '';
-
-        // 停止思考动画，开始说话动画
         face.classList.remove('thinking');
         face.classList.add('talking');
-        setTimeout(() => {
-            face.classList.remove('talking');
-        }, 2500);
+        setTimeout(() => face.classList.remove('talking'), 2500);
     })
     .catch(error => {
         console.error('Error:', error);
@@ -249,24 +310,18 @@ function sendMessage() {
     });
 }
 
-function addMessage(sender, message) {
-    const chatBox = document.getElementById(sender === 'user' ? 'user-message' : 'bot-message');
-    chatBox.innerHTML = message || ' ';
-}
-
-// 静态眨眼效果
 let isBlinking = false;
 setInterval(() => {
     const face = document.querySelector('.face');
     if (!face.classList.contains('thinking') && !face.classList.contains('talking') && !isBlinking) {
         isBlinking = true;
-        face.classList.add('blinking'); // 使用独立的 blinking 类
+        face.classList.add('blinking');
         setTimeout(() => {
             face.classList.remove('blinking');
             isBlinking = false;
-        }, 1000); // 眨眼持续1秒
+        }, 1000);
     }
-}, Math.random() * 5000 + 3000); // 3-8秒随机间隔
+}, Math.random() * 5000 + 3000);
 </script>
 </body>
 </html>
